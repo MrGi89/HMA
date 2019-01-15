@@ -67,94 +67,85 @@ class BudgetPage(tk.Frame):
         tk.Frame.__init__(self, parent)
         self.budget = 2000
 
-        tk.Button(self, text="< back", command=lambda: controller.show_frame(StartPage)).grid(row=0, column=0, sticky='w', padx=5, pady=5)
-        tk.Label(self, text='Current balance: {}'.format(self.budget), font=LARGE_FONT).grid(row=0, column=1, sticky='e', padx=5, pady=5)
-
+        back = tk.Button(self, text="< back", command=lambda: controller.show_frame(StartPage))
+        balance_label = tk.Label(self, text='Current balance: {}'.format(self.budget), font=LARGE_FONT)
         expenses_tree = ttk.Treeview(self, columns=('Expenses', 'Amount'), show='headings')
         expenses_tree.heading('#1', text='Expenses')
         expenses_tree.heading('#2', text='Amount')
         expenses_tree.column('#1', stretch=tk.YES)
         expenses_tree.column('#2', stretch=tk.YES)
-        expenses_tree.grid(row=1, column=0, sticky='nsew', padx=5, pady=5)
-        expenses_tree.insert('', 'end', text='', values=('Rent', '1200'))
-
+        # expenses_tree.insert('', 'end', text='', values=('Rent', '1200'))
         income_tree = ttk.Treeview(self, columns=('Incomes', 'Amount'), show='headings')
         income_tree.heading('#1', text='Incomes')
         income_tree.heading('#2', text='Amount')
         income_tree.column('#1', stretch=tk.YES)
         income_tree.column('#2', stretch=tk.YES)
-        income_tree.grid(row=1, column=1, sticky='nsew', padx=5, pady=5)
         income_tree.insert('', 'end', text='', values=('Salary', '2200'))
+        income_tree.insert('', 'end', text='', values=('Salary', '100'))
+        income_tree.insert('', 'end', text='', values=('Salary', '1500'))
 
-        tk.Button(self, text="Add expense", command=self.add_expense).grid(row=2, column=0, sticky='nsew', padx=5)
-        tk.Button(self, text="Add income").grid(row=2, column=1, sticky='nsew', padx=5)
-        tk.Button(self, text="Update expense").grid(row=3, column=0, sticky='nsew', padx=5)
-        tk.Button(self, text="Update income").grid(row=3, column=1, sticky='nsew', padx=5)
-        tk.Button(self, text="Delete expense").grid(row=4, column=0, sticky='nsew', padx=5)
-        tk.Button(self, text="Delete income").grid(row=4, column=1, sticky='nsew', padx=5)
+        add_exp_button = tk.Button(self, text="Add expense", command=lambda: self.add_expense())
+        add_inc_button = tk.Button(self, text="Add income", command=lambda: self.add_balance('income'))
+        upd_exp_button = tk.Button(self, text="Update expense", command=lambda: self.handle_balance('expense', expenses_tree.item(expenses_tree.focus())))
+        upd_inc_button = tk.Button(self, text="Update income", command=lambda: self.handle_balance('income', income_tree.item(income_tree.focus())))
+        del_exp_button = tk.Button(self, text="Delete expense")
+        del_inc_button = tk.Button(self, text="Delete income")
+
+        back.grid(row=0, column=0, sticky='w', padx=5, pady=5)
+        balance_label.grid(row=0, column=1, sticky='e', padx=5, pady=5)
+        expenses_tree.grid(row=1, column=0, sticky='nsew', padx=5, pady=5)
+        income_tree.grid(row=1, column=1, sticky='nsew', padx=5, pady=5)
+        add_exp_button.grid(row=2, column=0, sticky='nsew', padx=5)
+        add_inc_button.grid(row=2, column=1, sticky='nsew', padx=5)
+        upd_exp_button.grid(row=3, column=0, sticky='nsew', padx=5)
+        upd_inc_button.grid(row=3, column=1, sticky='nsew', padx=5)
+        del_exp_button.grid(row=4, column=0, sticky='nsew', padx=5)
+        del_inc_button.grid(row=4, column=1, sticky='nsew', padx=5)
 
     def add_expense(self):
 
-        top = tk.Toplevel(self, padx=20, pady=20)
-        top.title("Add expense")
+        window = BalanceWindow(self, padx=20, pady=20)
+        window.title = 'Add expense'
 
-        tk.Label(top, text='Title').grid(row=0, column=0, sticky='w', pady=5)
-        tk.Entry(top).grid(row=0, column=1, columnspan=2, sticky='e', padx=2)
+        title = window.title_entry.get()
+        amount = window.amount_entry.get()
+        date = window.date_entry.get()
 
-        tk.Label(top, text='Amount').grid(row=1, column=0, sticky='w', pady=5)
-        tk.Entry(top).grid(row=1, column=1, columnspan=2, sticky='e', padx=2)
+        print(title, amount, date)
 
-        tk.Label(top, text='Date').grid(row=2, column=0, sticky='w', pady=5)
-        tk.Entry(top).grid(row=2, column=1, columnspan=2, sticky='e', padx=2)
 
-        tk.Button(top, text='Cancel', command=top.destroy).grid(row=4, column=1, sticky='e')
-        tk.Button(top, text='Add').grid(row=4, column=2, sticky='e')
+class BalanceWindow(tk.Toplevel):
+
+    def __init__(self, parent, **kwargs):
+        tk.Toplevel.__init__(self, parent, **kwargs)
+
+        self.title = tk.Label(self, text='Title')
+        self.title_entry = tk.Entry(self)
+        self.amount = tk.Label(self, text='Amount')
+        self.amount_entry = tk.Entry(self)
+        self.date = tk.Label(self, text='Date')
+        self.date_entry = tk.Entry(self)
+
+        self.cancel = tk.Button(self, text='Cancel', command=self.destroy)
+        self.save = tk.Button(self, text='Save')
+
+        self.title.grid(row=0, column=0, sticky='w', pady=5)
+        self.title_entry.grid(row=0, column=1, columnspan=2, sticky='e', padx=2)
+        self.amount.grid(row=1, column=0, sticky='w', pady=5)
+        self.amount_entry.grid(row=1, column=1, columnspan=2, sticky='e', padx=2)
+        self.date.grid(row=2, column=0, sticky='w', pady=5)
+        self.date_entry.grid(row=2, column=1, columnspan=2, sticky='e', padx=2)
+        self.cancel.grid(row=3, column=1, sticky='e')
+        self.save.grid(row=3, column=2, sticky='e')
+
+    def save(self):
+        data = {'title': self.title_entry.get(),
+                'amount': self.amount_entry.get(),
+                'date': self.date_entry.get()}
+        self.destroy()
+        return data
 
 
 if __name__ == "__main__":
     app = App()
     app.mainloop()
-
-#     def initialize_ui(self):
-#         self.parent.title('Home budget')
-#         self.parent.geometry('800x600')
-#
-#         tk.Frame(height=20, bd=1, relief=tk.SUNKEN).grid(row=0, column=0, columnspan=3)
-#
-#         tk.Label(text='First Name').grid(row=1, column=0, sticky=tk.W)
-#         tk.Entry().grid(row=1, column=1, sticky=tk.E)
-#         tk.Label(text='Last Name').grid(row=2, column=0, sticky=tk.W)
-#         tk.Entry().grid(row=2, column=1, sticky=tk.E)
-#         tk.Label(text='Balance').grid(row=3, column=0, sticky=tk.W)
-#         tk.Label(text=str(self.get_balance())).grid(row=3, column=1, sticky=tk.E)
-#
-#         tk.Frame(height=10, width=100).grid(row=2, column=2, rowspan=2)
-#
-#         tk.Button(self.parent, text="Save changes", command=self.parent.quit, width=50).grid(row=1, column=3, sticky=tk.W)
-#         tk.Button(self.parent, text="Add expense", command=self.parent.quit, width=50).grid(row=2, column=3, sticky=tk.W)
-#         tk.Button(self.parent, text="Add income", command=self.parent.quit, width=50).grid(row=3, column=3, sticky=tk.W)
-#
-#         tk.Frame(height=20, bd=1, relief=tk.SUNKEN).grid(row=4, column=0, columnspan=3)
-#
-#         self.expenses_tree = ttk.Treeview(self.parent, columns=('Expenses', 'Amount'), show='headings')
-#         self.expenses_tree.heading('#1', text='Expenses')
-#         self.expenses_tree.heading('#2', text='Amount')
-#         self.expenses_tree.column('#1', stretch=tk.YES)
-#         self.expenses_tree.column('#2', width=80, stretch=tk.YES)
-#         self.expenses_tree.grid(row=5, column=0, columnspan=2, sticky=tk.W)
-#         self.expenses_tree.insert('', 'end', text='', values=('Widget Tour', '22'))
-#
-#         tk.Frame(height=10, width=100).grid(row=5, column=2)
-#
-#         self.income_tree = ttk.Treeview(self.parent, columns=('Income', 'Amount'), show='headings')
-#         self.income_tree.heading('#1', text='Income')
-#         self.income_tree.heading('#2', text='Amount')
-#         self.income_tree.column('#1', stretch=tk.YES)
-#         self.income_tree.column('#2', width=80, stretch=tk.YES)
-#         self.income_tree.grid(row=5, column=3, columnspan=2, sticky=tk.W)
-#         self.income_tree.insert('', 'end', text='', values=('Salary', '2200'))
-#
-#     def insert_to_tree(self):
-#         # self.tree.insert('', 'end', 1, text='Karta miejska')
-#         pass
-
