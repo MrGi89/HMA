@@ -2,3 +2,4 @@ env*
 .idea*
 *test.py
 *__pycache__*
+budget.sqlite
