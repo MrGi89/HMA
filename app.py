@@ -72,47 +72,49 @@ class BudgetPage(tk.Frame):
         # SETTING ELEMENTS
 
         self.parent = parent
-        self.back = tk.Button(self, text="< back", command=lambda: controller.show_frame(StartPage))
+        self.back = tk.Button(self, text="menu", command=lambda: controller.show_frame(StartPage))
         self.balance_label = tk.Label(self, font=LARGE_FONT)
         self.exp_tree = ttk.Treeview(self, columns=('id', 'Expense', 'Amount', 'Date'), show='headings',
                                      selectmode='browse')
-        self.exp_tree.heading('#1', text='id', anchor=tk.CENTER)
         self.exp_tree.heading('#2', text='Expense', anchor=tk.CENTER)
         self.exp_tree.heading('#3', text='Amount', anchor=tk.CENTER)
         self.exp_tree.heading('#4', text='Date', anchor=tk.CENTER)
-        self.exp_tree.column('#1', width=100, stretch=tk.NO)
-        self.exp_tree.column('#2', width=200, stretch=tk.NO)
-        self.exp_tree.column('#3', width=100, stretch=tk.NO, anchor=tk.CENTER)
+        self.exp_tree.column('#2', width=150, stretch=tk.NO)
+        self.exp_tree.column('#3', width=100, stretch=tk.NO, anchor=tk.E)
         self.exp_tree.column('#4', width=100, stretch=tk.NO, anchor=tk.CENTER)
         self.exp_tree["displaycolumns"] = ('Expense', 'Amount', 'Date')
         self.exp_tree.bind('<ButtonRelease-1>', self.activate_exp_button)
-        self.exp_add_button = tk.Button(self, text="Add expense", command=lambda: self.add_window(title='Add expense',
-                                                                                                  revenue_type='expense'))
-        self.exp_upd_button = tk.Button(self, text="Update expense", state='disabled',
+        self.exp_add_button = tk.Button(self,
+                                        text="Add expense",
+                                        command=lambda: self.add_window(title='Add expense', revenue_type='expense'))
+        self.exp_upd_button = tk.Button(self,
+                                        text="Update expense",
                                         command=lambda: self.update_window(title='Update expense',
                                                                            item=self.exp_tree.item(self.exp_tree.focus())))
-        self.exp_del_button = tk.Button(self, text="Delete expense", state='disabled',
+        self.exp_del_button = tk.Button(self,
+                                        text="Delete expense",
                                         command=lambda: self.delete_window(item=self.exp_tree.item(self.exp_tree.focus())))
 
         self.inc_tree = ttk.Treeview(self, columns=('id', 'Income', 'Amount', 'Date'), show='headings',
                                      selectmode='browse')
-        self.inc_tree.heading('#1', text='id', anchor=tk.CENTER)
         self.inc_tree.heading('#2', text='Income', anchor=tk.CENTER)
         self.inc_tree.heading('#3', text='Amount', anchor=tk.CENTER)
         self.inc_tree.heading('#4', text='Date', anchor=tk.CENTER)
-        self.inc_tree.column('#1', width=200, stretch=tk.NO)
-        self.inc_tree.column('#2', width=200, stretch=tk.NO)
-        self.inc_tree.column('#3', width=100, stretch=tk.NO, anchor=tk.CENTER)
+        self.inc_tree.column('#2', width=150, stretch=tk.NO)
+        self.inc_tree.column('#3', width=100, stretch=tk.NO, anchor=tk.E)
         self.inc_tree.column('#4', width=100, stretch=tk.NO, anchor=tk.CENTER)
         self.inc_tree["displaycolumns"] = ('Income', 'Amount', 'Date')
         self.inc_tree.bind('<ButtonRelease-1>', self.activate_inc_button)
-        self.inc_add_button = tk.Button(self, text="Add income", command=lambda: self.add_window(title='Add income',
-                                                                                                 revenue_type='income'))
-        self.inc_upd_button = tk.Button(self, text="Update income", state='disabled',
+        self.inc_add_button = tk.Button(self,
+                                        text="Add income",
+                                        command=lambda: self.add_window(title='Add income', revenue_type='income'))
+        self.inc_upd_button = tk.Button(self,
+                                        text="Update income",
                                         command=lambda: self.update_window(title='Update income',
                                                                            item=self.inc_tree.item(self.inc_tree.focus())))
-        self.inc_del_button = tk.Button(self, text="Delete income", state='disabled',
-                                        command=lambda: self.delete_window(item=self.inc_tree.item(self.exp_tree.focus())))
+        self.inc_del_button = tk.Button(self,
+                                        text="Delete income",
+                                        command=lambda: self.delete_window(item=self.inc_tree.item(self.inc_tree.focus())))
         self.refresh_budget_page()
 
         # STYLING
@@ -143,19 +145,19 @@ class BudgetPage(tk.Frame):
             if revenue['revenue_type'] == 'expense':
                 self.exp_tree.insert('', 'end', values=(revenue['id'],
                                                         revenue['name'],
-                                                        revenue['amount'],
+                                                        '{:.2f}'.format(revenue['amount']),
                                                         revenue['create_date']))
             else:
                 self.inc_tree.insert('', 'end', values=(revenue['id'],
                                                         revenue['name'],
-                                                        revenue['amount'],
+                                                        '{:.2f}'.format(revenue['amount']),
                                                         revenue['create_date']))
         # SETS ACTUAL BALANCE
         budget = db_execute(
             sql='''SELECT ROUND(SUM(CASE WHEN revenue_type='income' THEN amount ELSE 0 END) - 
                           SUM(CASE WHEN revenue_type='expense' THEN amount ELSE 0 END), 2) AS balance
                    FROM revenues;''')
-        self.balance_label['text'] = 'Current balance: {}'.format(budget[0]['balance'])
+        self.balance_label['text'] = 'Current balance: {:.2f}'.format(budget[0]['balance'])
 
     def activate_exp_button(self, event):
         """
