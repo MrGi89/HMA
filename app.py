@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 import tkinter as tk
 from tkinter import ttk
 from tools import db_execute
@@ -154,8 +154,8 @@ class BudgetPage(tk.Frame):
                                                         revenue['create_date']))
         # SETS ACTUAL BALANCE
         budget = db_execute(
-            sql='''SELECT ROUND(SUM(CASE WHEN revenue_type='income' THEN amount ELSE 0 END) - 
-                          SUM(CASE WHEN revenue_type='expense' THEN amount ELSE 0 END), 2) AS balance
+            sql='''SELECT SUM(CASE WHEN revenue_type='income' THEN amount ELSE 0 END) - 
+                          SUM(CASE WHEN revenue_type='expense' THEN amount ELSE 0 END) AS balance
                    FROM revenues;''')
         self.balance_label['text'] = 'Current balance: {:.2f}'.format(budget[0]['balance'])
 
@@ -202,7 +202,7 @@ class BudgetPage(tk.Frame):
         window.title(title)
         window.title()
         window.title('Add income')
-        window.date_entry.insert(0, str(date.today()))
+        window.date_value.insert(0, str(date.today()))
         window.save['command'] = lambda: window.add_revenue(revenue_type)
 
     def update_window(self, title, item):
@@ -214,9 +214,9 @@ class BudgetPage(tk.Frame):
         """
         window = AddUpdateElementWindow(self, padx=20, pady=20)
         window.title(title)
-        window.name_entry.insert(0, item['values'][1])
-        window.amount_entry.insert(0, item['values'][2])
-        window.date_entry.insert(0, item['values'][3])
+        window.name_value.insert(0, item['values'][1])
+        window.amount_value.insert(0, item['values'][2])
+        window.date_value.insert(0, item['values'][3])
         window.save['command'] = lambda: window.update_revenue(revenue_id=item['values'][0])
 
     def delete_window(self, item):
@@ -236,21 +236,21 @@ class AddUpdateElementWindow(tk.Toplevel):
         tk.Toplevel.__init__(self, parent, **kwargs)
 
         self.parent = parent
-        self.name = tk.Label(self, text='Name')
-        self.name_entry = tk.Entry(self)
-        self.amount = tk.Label(self, text='Amount')
-        self.amount_entry = tk.Entry(self)
-        self.date = tk.Label(self, text='Date')
-        self.date_entry = tk.Entry(self)
+        self.name_label = tk.Label(self, text='Name')
+        self.name_value = tk.Entry(self)
+        self.amount_label = tk.Label(self, text='Amount')
+        self.amount_value = tk.Entry(self)
+        self.date_label = tk.Label(self, text='Date')
+        self.date_value = tk.Entry(self)
         self.cancel = tk.Button(self, text='Cancel', command=self.destroy)
         self.save = tk.Button(self, text='Save')
 
-        self.name.grid(row=0, column=0, sticky='w', pady=5)
-        self.name_entry.grid(row=0, column=1, columnspan=2, sticky='e', padx=2)
-        self.amount.grid(row=1, column=0, sticky='w', pady=5)
-        self.amount_entry.grid(row=1, column=1, columnspan=2, sticky='e', padx=2)
-        self.date.grid(row=2, column=0, sticky='w', pady=5)
-        self.date_entry.grid(row=2, column=1, columnspan=2, sticky='e', padx=2)
+        self.name_label.grid(row=0, column=0, sticky='w', pady=5)
+        self.name_value.grid(row=0, column=1, columnspan=2, sticky='e', padx=2)
+        self.amount_label.grid(row=1, column=0, sticky='w', pady=5)
+        self.amount_value.grid(row=1, column=1, columnspan=2, sticky='e', padx=2)
+        self.date_label.grid(row=2, column=0, sticky='w', pady=5)
+        self.date_value.grid(row=2, column=1, columnspan=2, sticky='e', padx=2)
         self.cancel.grid(row=3, column=1, pady=5, sticky='e')
         self.save.grid(row=3, column=2, pady=5, sticky='e')
 
@@ -260,14 +260,15 @@ class AddUpdateElementWindow(tk.Toplevel):
         :param revenue_type: (str) type of revenue (income, expense)
         :return: None
         """
-        # todo validation
-        name = self.name_entry.get()
-        amount = self.amount_entry.get()
-        exp_date = self.date_entry.get()
-        db_execute(sql='''INSERT INTO revenues VALUES (NULL, ?, ?, ?, ?);''',
-                   variables=(name, revenue_type, amount, exp_date))
-        self.parent.refresh_budget_page()
-        self.destroy()
+        validated_data = self.validate_input()
+        if validated_data:
+            db_execute(sql='''INSERT INTO revenues VALUES (NULL, ?, ?, ?, ?);''',
+                       variables=(validated_data[0],
+                                  revenue_type,
+                                  validated_data[1],
+                                  validated_data[2]))
+            self.parent.refresh_budget_page()
+            self.destroy()
 
     def update_revenue(self, revenue_id):
         """
@@ -275,14 +276,53 @@ class AddUpdateElementWindow(tk.Toplevel):
         :param revenue_id: (int) ID of revenue stored in DB
         :return: None
         """
-        # todo validation
-        name = self.name_entry.get()
-        amount = self.amount_entry.get()
-        exp_date = self.date_entry.get()
-        db_execute(sql='''UPDATE revenues SET name=?, amount=?, create_date=? WHERE id=?;''',
-                   variables=(name, amount, exp_date, revenue_id))
-        self.parent.refresh_budget_page()
-        self.destroy()
+        validated_data = self.validate_input()
+        if validated_data:
+            db_execute(sql='''UPDATE revenues SET name=?, amount=?, create_date=? WHERE id=?;''',
+                       variables=(validated_data[0],
+                                  validated_data[1],
+                                  validated_data[2],
+                                  revenue_id))
+            self.parent.refresh_budget_page()
+            self.destroy()
+
+    def validate_input(self):
+        """
+        Handles user input data validation. Raises tk.TopLevel widget frame as error
+        :return: tuple that stores correct data. None if data was wrong.
+        """
+        # VALIDATES NAME ENTRY
+        name = self.name_value.get()
+        if name == '':
+            ValidationError(self, text='Name can\'t be empty!', padx=10, pady=10)
+            return
+        # VALIDATES AMOUNT ENTRY
+        try:
+            amount = float(self.amount_value.get().replace(',', '.'))
+        except ValueError:
+            ValidationError(self, text='Amount must be a number!', padx=10, pady=10)
+            return
+        # VALIDATES DATE ENTRY
+        try:
+            create_date = datetime.strptime(self.date_value.get(), '%Y-%M-%d').date()
+        except ValueError:
+            ValidationError(self, text='Date should be in YYYY-MM-DD format!', padx=10, pady=10)
+            return
+        return name, amount, create_date
+
+
+class ValidationError(tk.Toplevel):
+
+    def __init__(self, parent, text, **kwargs):
+        tk.Toplevel.__init__(self, parent, **kwargs)
+
+        self.parent = parent
+        self.title('Error')
+        self.msg = tk.Message(self, text=text, width=300)
+        self.button = tk.Button(self, text="Dismiss", command=self.destroy)
+
+        self.msg.grid(row=0, column=0, sticky='nsew', pady=5)
+        self.button.grid(row=1, column=0, pady=5)
 
 
 class DeleteElementWindow(tk.Toplevel):
@@ -295,9 +335,9 @@ class DeleteElementWindow(tk.Toplevel):
         self.cancel = tk.Button(self, text='Cancel', command=self.destroy)
         self.delete = tk.Button(self, text='Delete')
 
-        self.label.grid(row=0, column=0, sticky='nsew', pady=5)
-        self.cancel.grid(row=1, column=0, pady=5, sticky='e')
-        self.delete.grid(row=1, column=1, pady=5, sticky='e')
+        self.label.grid(row=0, column=0, columnspan=2, sticky='nsew', pady=5)
+        self.cancel.grid(row=1, column=0, padx=5, pady=5, sticky='e')
+        self.delete.grid(row=1, column=1, padx=5, pady=5, sticky='w')
 
     def delete_revenue(self, revenue_id):
         """
