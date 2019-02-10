@@ -1,6 +1,12 @@
 from datetime import date, datetime
+import csv
+import os
+import subprocess
+import sys
+
 import tkinter as tk
 from tkinter import ttk
+from tkinter import filedialog
 from tools import db_execute
 
 LARGE_FONT = ("verdana", 16)
@@ -70,9 +76,8 @@ class BudgetPage(tk.Frame):
         tk.Frame.__init__(self, parent)
 
         # SETTING ELEMENTS
-
         self.parent = parent
-        self.back = tk.Button(self, text="menu", command=lambda: controller.show_frame(StartPage))
+        self.export = tk.Button(self, text='export to csv', command=self.export_to_csv)
         self.balance_label = tk.Label(self, font=LARGE_FONT)
         self.exp_tree = ttk.Treeview(self, columns=('id', 'Expense', 'Amount', 'Date'), show='headings',
                                      selectmode='browse')
@@ -118,8 +123,7 @@ class BudgetPage(tk.Frame):
         self.refresh_budget_page()
 
         # STYLING
-
-        self.back.grid(row=0, column=0, sticky='w', padx=5, pady=5)
+        self.export.grid(row=0, column=0, sticky='w', padx=5, pady=5)
         self.balance_label.grid(row=0, column=1, sticky='e', padx=5, pady=5)
         self.exp_tree.grid(row=1, column=0, sticky='nsew', padx=5, pady=5)
         self.inc_tree.grid(row=1, column=1, sticky='nsew', padx=5, pady=5)
@@ -153,11 +157,17 @@ class BudgetPage(tk.Frame):
                                                         '{:.2f}'.format(revenue['amount']),
                                                         revenue['create_date']))
         # SETS ACTUAL BALANCE
+
+        self.balance_label['text'] = 'Current balance: {:.2f}'.format(self.get_balance())
+
+    def get_balance(self):
+
         budget = db_execute(
-            sql='''SELECT SUM(CASE WHEN revenue_type='income' THEN amount ELSE 0 END) - 
-                          SUM(CASE WHEN revenue_type='expense' THEN amount ELSE 0 END) AS balance
-                   FROM revenues;''')
-        self.balance_label['text'] = 'Current balance: {:.2f}'.format(budget[0]['balance'])
+            sql='''SELECT IFNULL(SUM(CASE WHEN revenue_type='income' THEN amount ELSE 0 END) - 
+                                 SUM(CASE WHEN revenue_type='expense' THEN amount ELSE 0 END), 0) AS balance
+                           FROM revenues;''')
+        return budget[0]['balance']
+
 
     def activate_exp_button(self, event):
         """
@@ -228,6 +238,44 @@ class BudgetPage(tk.Frame):
         window = DeleteElementWindow(self, padx=10, pady=10)
         window.title('Delete element?')
         window.delete['command'] = lambda: window.delete_revenue(revenue_id=item['values'][0])
+
+    def export_to_csv(self):
+        """
+        Creates and saves csv file in selected by user directory, open file with default system application
+        :return: None
+        """
+        # SHOWS ASK FOR DIRECTORY WINDOW
+        file_dir = filedialog.asksaveasfilename(initialdir='/',
+                                                title='Select file',
+                                                filetypes=(('csv file', '*.csv'), ('all files', '*.*')))
+        if not file_dir:
+            return
+
+        # CREATES FILE IN SELECTED DIRECTORY
+        with open(file_dir, 'w', encoding='utf-8') as csv_file:
+
+            field_names = ['name', 'revenue_type', 'amount', 'create_date']
+            writer = csv.DictWriter(csv_file, fieldnames=field_names)
+            writer.writeheader()
+
+            # FINDS DATA STORED IN DB
+            revenues = db_execute(sql='''SELECT name, revenue_type, amount, create_date FROM revenues;''')
+
+            # SAVES DATA IN FILE
+            for revenue in revenues:
+                writer.writerow(revenue)
+            writer.writerow({'name': '', 'revenue_type': '', 'amount': 'SUM', 'create_date': self.get_balance()})
+
+        # OPENS SAVED FILE IN DEFAULT SYSTEM APPLICATION
+        if sys.platform.startswith('darwin'):
+            subprocess.call(('open', file_dir))
+        # FOR WINDOWS
+        elif os.name == 'nt':
+            os.startfile(file_dir)
+            return
+        # FOR UNIX
+        elif os.name == 'posix':
+            subprocess.call(('xdg-open', file_dir))
 
 
 class AddUpdateElementWindow(tk.Toplevel):
