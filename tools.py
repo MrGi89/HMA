@@ -8,13 +8,17 @@ def dict_factory(cursor, row):
     return result
 
 
-def db_execute(sql, variables=tuple()):
-
-    conn = sqlite3.connect('budget.sqlite')
+def db_execute(sql, variables=tuple(), cursor_type='fetchall'):
+    conn = sqlite3.connect('hma_db.sqlite')
     conn.row_factory = dict_factory
     c = conn.cursor()
     c.execute(sql, variables)
-    result = c.fetchall()
+    if cursor_type == 'fetchall':
+        result = c.fetchall()
+    elif cursor_type == 'fetchone':
+        result = c.fetchone()
+    else:
+        result = c.lastrowid
     conn.commit()
     conn.close()
     return result

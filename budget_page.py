@@ -281,8 +281,8 @@ class AddUpdateElementWindow(tk.Toplevel):
 
     def validate_input(self):
         """
-        Handles user input data validation. Raises tk.TopLevel widget frame as error
-        :return: tuple that stores correct data. None if data was wrong.
+        Handles user input data validation. Raises tk.TopLevel widget frame as error if incorrect data is entered
+        :return: tuple that stores correct data. None if data was incorrect.
         """
         # VALIDATES NAME ENTRY
         name = self.name_value.get()

@@ -23,7 +23,7 @@ class App(tk.Tk):
             frame = item(container, self)
             frame.grid(row=0, column=0, sticky='nsew', padx=10, pady=10)
             self.frames[item] = frame
-        self.show_frame(CookPage)
+        self.show_frame(StartPage)
 
     def init_menu(self, container):
         menu_bar = tk.Menu(container)
