@@ -4,22 +4,19 @@ import os
 import subprocess
 import sys
 import tkinter as tk
-from tkinter import ttk
-from tkinter import filedialog
-from tools import db_execute
-
-LARGE_FONT = ("verdana", 16)
+from tkinter import ttk, filedialog
+import cfg
 
 
-class BudgetPage(tk.Frame):
+class BudgetFrame(tk.Frame):
 
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
 
         # SETTING ELEMENTS
         self.parent = parent
-        self.export = tk.Button(self, text='export to csv', command=BudgetPage.export_to_csv)
-        self.balance_label = tk.Label(self, font=LARGE_FONT)
+        self.export = tk.Button(self, text='export to csv', command=BudgetFrame.export_to_csv)
+        self.balance_label = tk.Label(self, font=('verdana', 16))
         self.exp_tree = ttk.Treeview(self, columns=('id', 'Expense', 'Amount', 'Date'), show='headings',
                                      selectmode='browse')
         self.exp_tree.heading('#2', text='Expense', anchor=tk.CENTER)
@@ -65,7 +62,6 @@ class BudgetPage(tk.Frame):
                                         text="Delete income",
                                         command=lambda: self.delete_window(
                                             item=self.inc_tree.item(self.inc_tree.focus())))
-        self.refresh_budget_page()
 
         # STYLING
         self.export.grid(row=0, column=0, sticky='w', padx=5, pady=5)
@@ -79,7 +75,7 @@ class BudgetPage(tk.Frame):
         self.inc_upd_button.grid(row=3, column=1, sticky='nsew', padx=5)
         self.inc_del_button.grid(row=4, column=1, sticky='nsew', padx=5)
 
-    def refresh_budget_page(self):
+    def refresh_frame(self):
         """
         Refreshes budget page data, deactivates buttons, inserts correct values to trees and sets actual balance
         :return: None
@@ -89,7 +85,10 @@ class BudgetPage(tk.Frame):
         self.inc_tree.delete(*self.inc_tree.get_children())
         self.deactivate_buttons()
         # RETRIEVES AND ADDS ACTUAL ELEMENTS TO TREES
-        revenues = db_execute(sql='''SELECT * FROM revenues ORDER BY create_date DESC, amount DESC;''')
+        revenues = cfg.db_execute(sql='''SELECT * FROM revenues 
+                                         WHERE user_id=?
+                                         ORDER BY create_date DESC, amount DESC;''',
+                                  variables=(cfg.CURRENT_USER['id'],))
         for revenue in revenues:
             if revenue['revenue_type'] == 'expense':
                 self.exp_tree.insert('', 'end', values=(revenue['id'],
@@ -103,14 +102,16 @@ class BudgetPage(tk.Frame):
                                                         revenue['create_date']))
         # SETS ACTUAL BALANCE
 
-        self.balance_label['text'] = 'Current balance: {:.2f}'.format(BudgetPage.get_balance())
+        self.balance_label['text'] = 'Current balance: {:.2f}'.format(BudgetFrame.get_balance())
 
     @staticmethod
     def get_balance():
-        budget = db_execute(
+        budget = cfg.db_execute(
             sql='''SELECT IFNULL(SUM(CASE WHEN revenue_type='income' THEN amount ELSE 0 END) - 
                                  SUM(CASE WHEN revenue_type='expense' THEN amount ELSE 0 END), 0) AS balance
-                           FROM revenues;''')
+                   FROM revenues
+                   WHERE user_id=?;''',
+            variables=(cfg.CURRENT_USER['id'],))
         return budget[0]['balance']
 
     def activate_exp_button(self, event):
@@ -204,12 +205,15 @@ class BudgetPage(tk.Frame):
             writer.writeheader()
 
             # FINDS DATA STORED IN DB
-            revenues = db_execute(sql='''SELECT name, revenue_type, amount, create_date FROM revenues;''')
+            revenues = cfg.db_execute(sql='''SELECT name, revenue_type, amount, create_date 
+                                             FROM revenues
+                                             WHERE user_id=?;''',
+                                      variables=(cfg.CURRENT_USER['id'],))
 
             # SAVES DATA IN FILE
             for revenue in revenues:
                 writer.writerow(revenue)
-            writer.writerow({'name': '', 'revenue_type': 'SUM', 'amount': BudgetPage.get_balance(), 'create_date': ''})
+            writer.writerow({'name': '', 'revenue_type': 'SUM', 'amount': BudgetFrame.get_balance(), 'create_date': ''})
 
         # OPENS SAVED FILE IN DEFAULT SYSTEM APPLICATION
         if sys.platform.startswith('darwin'):
@@ -255,12 +259,13 @@ class AddUpdateElementWindow(tk.Toplevel):
         """
         validated_data = self.validate_input()
         if validated_data:
-            db_execute(sql='''INSERT INTO revenues VALUES (NULL, ?, ?, ?, ?);''',
-                       variables=(validated_data[0],
-                                  revenue_type,
-                                  validated_data[1],
-                                  validated_data[2]))
-            self.parent.refresh_budget_page()
+            cfg.db_execute(sql='''INSERT INTO revenues VALUES (NULL, ?, ?, ?, ?, ?);''',
+                           variables=(validated_data[0],
+                                      revenue_type,
+                                      validated_data[1],
+                                      validated_data[2],
+                                      cfg.CURRENT_USER['id']))
+            self.parent.refresh_frame()
             self.destroy()
 
     def update_revenue(self, revenue_id):
@@ -271,12 +276,14 @@ class AddUpdateElementWindow(tk.Toplevel):
         """
         validated_data = self.validate_input()
         if validated_data:
-            db_execute(sql='''UPDATE revenues SET name=?, amount=?, create_date=? WHERE id=?;''',
-                       variables=(validated_data[0],
-                                  validated_data[1],
-                                  validated_data[2],
-                                  revenue_id))
-            self.parent.refresh_budget_page()
+            cfg.db_execute(sql='''UPDATE revenues 
+                                  SET name=?, amount=?, create_date=? 
+                                  WHERE id=?;''',
+                           variables=(validated_data[0],
+                                      validated_data[1],
+                                      validated_data[2],
+                                      revenue_id))
+            self.parent.refresh_frame()
             self.destroy()
 
     def validate_input(self):
@@ -287,35 +294,21 @@ class AddUpdateElementWindow(tk.Toplevel):
         # VALIDATES NAME ENTRY
         name = self.name_value.get()
         if name == '':
-            ValidationError(self, text='Name can\'t be empty!', padx=10, pady=10)
+            cfg.ValidationError(self, text='Name can\'t be empty!', padx=10, pady=10)
             return
         # VALIDATES AMOUNT ENTRY
         try:
             amount = float(self.amount_value.get().replace(',', '.'))
         except ValueError:
-            ValidationError(self, text='Amount must be a number!', padx=10, pady=10)
+            cfg.ValidationError(self, text='Amount must be a number!', padx=10, pady=10)
             return
         # VALIDATES DATE ENTRY
         try:
             create_date = datetime.strptime(self.date_value.get(), '%Y-%M-%d').date()
         except ValueError:
-            ValidationError(self, text='Date should be in YYYY-MM-DD format!', padx=10, pady=10)
+            cfg.ValidationError(self, text='Date should be in YYYY-MM-DD format!', padx=10, pady=10)
             return
         return name, amount, create_date
-
-
-class ValidationError(tk.Toplevel):
-
-    def __init__(self, parent, text, **kwargs):
-        tk.Toplevel.__init__(self, parent, **kwargs)
-
-        self.parent = parent
-        self.title('Error')
-        self.msg = tk.Message(self, text=text, width=300)
-        self.button = tk.Button(self, text="Dismiss", command=self.destroy)
-
-        self.msg.grid(row=0, column=0, sticky='nsew', pady=5)
-        self.button.grid(row=1, column=0, pady=5)
 
 
 class DeleteElementWindow(tk.Toplevel):
@@ -338,8 +331,8 @@ class DeleteElementWindow(tk.Toplevel):
         :param revenue_id: (int) ID of revenue stored in DB
         :return: None
         """
-        db_execute(
+        cfg.db_execute(
             sql='''DELETE FROM revenues WHERE id=?;''',
             variables=(revenue_id,))
-        self.parent.refresh_budget_page()
+        self.parent.refresh_frame()
         self.destroy()

@@ -1,15 +1,15 @@
 import tkinter as tk
-from budget_page import BudgetPage
-from cook_page import CookPage
-
-MEDIUM_FONT = ("verdana", 12)
+from frames.landing_frame import LandingFrame
+from frames.budget_frame import BudgetFrame
+from frames.cook_frame import CookBookFrame
 
 
 class App(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        tk.Tk.wm_title(self, 'Home Management Application')
+        tk.Tk.wm_title(self, 'HMA - Home Management Application')
+        self.resizable(False, False)
 
         container = tk.Frame(self)
         container.pack(side='top', fill='both', expand=True)
@@ -19,11 +19,13 @@ class App(tk.Tk):
         self.init_menu(container)
 
         self.frames = dict()
-        for item in (StartPage, BudgetPage, CookPage):
+        for item in (LandingFrame, BudgetFrame, CookBookFrame):
             frame = item(container, self)
             frame.grid(row=0, column=0, sticky='nsew', padx=10, pady=10)
+            frame.grid_columnconfigure(0, weight=1)
+            frame.grid_columnconfigure(1, weight=1)
             self.frames[item] = frame
-        self.show_frame(StartPage)
+        self.show_frame(LandingFrame)
 
     def init_menu(self, container):
         menu_bar = tk.Menu(container)
@@ -31,10 +33,7 @@ class App(tk.Tk):
         options = tk.Menu(menu_bar, tearoff=0)
         about = tk.Menu(menu_bar, tearoff=0)
 
-        file.add_command(label="Main menu", command=lambda: self.show_frame(StartPage))
-        file.add_separator()
-        file.add_command(label="Import from...", command=quit)
-        file.add_command(label="Export to...", command=quit)
+        file.add_command(label="Menu", command=lambda: self.show_frame(LandingFrame))
         file.add_separator()
         file.add_command(label="Exit", command=quit)
 
@@ -46,27 +45,9 @@ class App(tk.Tk):
 
     def show_frame(self, cont):
         frame = self.frames[cont]
+        if cont in (BudgetFrame, CookBookFrame):
+            frame.refresh_frame()
         frame.tkraise()
-
-
-class StartPage(tk.Frame):
-
-    def __init__(self, parent, controller):
-        tk.Frame.__init__(self, parent)
-        welcome_text = '''Welcome to Home Management Application!!!\nChoose what you wan\'t to do from options below:'''
-        tk.Label(self, text=welcome_text, font=MEDIUM_FONT).pack(pady=70)
-        tk.Button(self,
-                  text="Budget",
-                  height=1,
-                  font=MEDIUM_FONT,
-                  command=lambda: controller.show_frame(BudgetPage)).pack(fill='both', pady=5)
-        tk.Button(self, text="Shopping list", height=1, font=MEDIUM_FONT, state='disabled').pack(fill='both', pady=5)
-        tk.Button(self,
-                  text="Cook book",
-                  height=1,
-                  font=MEDIUM_FONT,
-                  command=lambda: controller.show_frame(CookPage)).pack(fill='both', pady=5)
-        tk.Button(self, text="Exit", height=1, font=MEDIUM_FONT, command=quit).pack(fill='both', pady=5)
 
 
 if __name__ == "__main__":

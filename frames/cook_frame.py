@@ -1,12 +1,9 @@
 import tkinter as tk
 from tkinter import ttk
-from tools import db_execute
-
-MEDIUM_FONT = ("verdana", 12)
-LARGE_FONT = ("verdana", 16)
+import cfg
 
 
-class CookPage(tk.Frame):
+class CookBookFrame(tk.Frame):
 
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
@@ -17,7 +14,7 @@ class CookPage(tk.Frame):
         self.search.insert(0, 'search...')
         self.list = ttk.Treeview(self, columns=('title', 'desc'), show='headings', selectmode='browse')
         self.list.heading('#1', text='Recipes', anchor=tk.CENTER)
-        self.list.column('#1', stretch=tk.NO, anchor=tk.W)
+        self.list.column('#1', width=210, stretch=tk.NO, anchor=tk.W)
         self.list['displaycolumns'] = ('title',)
         self.add = tk.Button(self,
                              text='Add recipe',
@@ -31,11 +28,7 @@ class CookPage(tk.Frame):
                                 state='disabled',
                                 command=lambda: self.delete_window(self.list.focus()))
         self.recipe = tk.Frame(self)
-
-        # FRAMES CONFIGURATION
         self.frames = dict()
-        self.refresh_cook_page()
-        self.show_frame(0)
 
         # ADDS EVENT LISTENERS
         self.list.bind('<ButtonRelease-1>', self.change_frame)
@@ -51,7 +44,7 @@ class CookPage(tk.Frame):
         self.list.grid(row=4, column=0, padx=5, pady=1, sticky='nsew')
         self.recipe.grid(row=0, column=1, rowspan=5, padx=5, sticky='nsew')
 
-    def refresh_cook_page(self, query=None):
+    def refresh_frame(self, query=None):
         """
         Refreshes cook book page data, inserts correct values to list tree
         :param query: (str) data passed by user to filter list tree
@@ -61,11 +54,17 @@ class CookPage(tk.Frame):
         self.frames.clear()
         self.list.delete(*self.list.get_children())
         if query:
-            recipes = db_execute(
-                sql='''SELECT * FROM recipes WHERE title LIKE ? ORDER BY title COLLATE NOCASE ASC;''',
-                variables=('%' + query + '%',))
+            recipes = cfg.db_execute(
+                sql='''SELECT * FROM recipes 
+                       WHERE title LIKE ? AND user_id=?
+                       ORDER BY title COLLATE NOCASE ASC;''',
+                variables=('%' + query + '%', cfg.CURRENT_USER['id']))
         else:
-            recipes = db_execute(sql='''SELECT * FROM recipes ORDER BY title COLLATE NOCASE ASC;''')
+            recipes = cfg.db_execute(
+                sql='''SELECT * FROM recipes 
+                       WHERE user_id=?
+                       ORDER BY title COLLATE NOCASE ASC;''',
+                variables=(cfg.CURRENT_USER['id'],))
         # CREATES WELCOME FRAME
         recipes.append({'id': 0,
                         'title': 'Choose recipe',
@@ -82,7 +81,7 @@ class CookPage(tk.Frame):
         for recipe in recipes:
             if recipe['id'] == 0:
                 continue
-            self.list.insert('', 'end', iid=recipe['id'], values=(recipe['title'], recipe['desc']))
+            self.list.insert('', 'end', iid=recipe['id'], values=(recipe['title'].capitalize(), recipe['desc']))
 
     def clear_search_button_placeholder(self, event):
         """
@@ -108,7 +107,7 @@ class CookPage(tk.Frame):
         :param event: not used
         :return: None
         """
-        self.refresh_cook_page(query=self.search.get())
+        self.refresh_frame(query=self.search.get())
         self.deactivate_buttons()
 
     def change_frame(self, event):
@@ -210,14 +209,14 @@ class AddUpdateWindow(tk.Toplevel):
         """
         validated_data = self.validate_input()
         if validated_data:
-            recipe_id = db_execute(sql='''INSERT INTO recipes VALUES (NULL, ?, ?);''',
-                                   variables=(validated_data[0], validated_data[1]),
-                                   cursor_type='last_id')
+            recipe_id = cfg.db_execute(sql='''INSERT INTO recipes VALUES (NULL, ?, ?, ?);''',
+                                       variables=(validated_data[0], validated_data[1], cfg.CURRENT_USER['id']),
+                                       cursor_type='last_id')
             query = self.parent.search.get()
             if query == 'search...':
-                self.parent.refresh_cook_page()
+                self.parent.refresh_frame()
             else:
-                self.parent.refresh_cook_page(query)
+                self.parent.refresh_frame(query)
 
             if self.parent.list.exists(str(recipe_id)):
                 self.parent.list.selection_set(str(recipe_id))
@@ -238,13 +237,13 @@ class AddUpdateWindow(tk.Toplevel):
         """
         validated_data = self.validate_input()
         if validated_data:
-            db_execute(sql='''UPDATE recipes SET title=?, `desc`=? WHERE id=?;''',
-                       variables=(validated_data[0], validated_data[1], recipe_id))
+            cfg.db_execute(sql='''UPDATE recipes SET title=?, `desc`=? WHERE id=?;''',
+                           variables=(validated_data[0], validated_data[1], recipe_id))
             query = self.parent.search.get()
             if query == 'search...':
-                self.parent.refresh_cook_page()
+                self.parent.refresh_frame()
             else:
-                self.parent.refresh_cook_page(query)
+                self.parent.refresh_frame(query)
 
             if self.parent.list.exists(recipe_id):
                 self.parent.list.selection_set(recipe_id)
@@ -262,29 +261,15 @@ class AddUpdateWindow(tk.Toplevel):
         """
         # VALIDATES TITLE ENTRY
         title = self.title_value.get()
-        desc = self.desc_value.get(1.0, tk.END)
         if title == '':
-            ValidationError(self, text='Recipe title can\'t be empty!', padx=10, pady=10)
+            cfg.ValidationError(self, text='Recipe title can\'t be empty!', padx=10, pady=10)
             return
         # VALIDATES DESCRIPTION ENTRY
+        desc = self.desc_value.get(1.0, tk.END)
         if len(desc) == 1:
-            ValidationError(self, text='Recipe description can\'t be empty!', padx=10, pady=10)
+            cfg.ValidationError(self, text='Recipe description can\'t be empty!', padx=10, pady=10)
             return
         return title, desc
-
-
-class ValidationError(tk.Toplevel):
-
-    def __init__(self, parent, text, **kwargs):
-        tk.Toplevel.__init__(self, parent, **kwargs)
-
-        self.parent = parent
-        self.title('Error')
-        self.msg = tk.Message(self, text=text, width=300)
-        self.button = tk.Button(self, text="Dismiss", command=self.destroy)
-
-        self.msg.grid(row=0, column=0, sticky='nsew', pady=5)
-        self.button.grid(row=1, column=0, pady=5)
 
 
 class Recipe(tk.Frame):
@@ -292,7 +277,7 @@ class Recipe(tk.Frame):
         tk.Frame.__init__(self, parent, **kwargs)
 
         self.parent = parent
-        self.title = tk.Label(self, text=title, font=LARGE_FONT, wraplength=480)
+        self.title = tk.Label(self, text=title, font=('verdana', 16), wraplength=480)
         self.desc = tk.Label(self, text=desc, wraplength=480, justify='left')
 
         self.title.grid(row=0, column=0, padx=5, pady=1, sticky='w')
@@ -319,14 +304,14 @@ class DeleteWindow(tk.Toplevel):
         :param recipe_id: (int) ID of recipe stored in DB
         :return: None
         """
-        db_execute(
+        cfg.db_execute(
             sql='''DELETE FROM recipes WHERE id=?;''',
             variables=(recipe_id,))
         query = self.parent.search.get()
         if query == 'search...':
-            self.parent.refresh_cook_page()
+            self.parent.refresh_frame()
         else:
-            self.parent.refresh_cook_page(query)
+            self.parent.refresh_frame(query)
         self.parent.show_frame(0)
         self.parent.deactivate_buttons()
         self.destroy()
