@@ -52,4 +52,5 @@ class App(tk.Tk):
 
 if __name__ == "__main__":
     app = App()
+    app.eval('tk::PlaceWindow %s center' % app.winfo_pathname(app.winfo_id()))
     app.mainloop()

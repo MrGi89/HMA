@@ -304,7 +304,7 @@ class AddUpdateElementWindow(tk.Toplevel):
             return
         # VALIDATES DATE ENTRY
         try:
-            create_date = datetime.strptime(self.date_value.get(), '%Y-%M-%d').date()
+            create_date = datetime.strptime(self.date_value.get(), '%Y-%m-%d').date()
         except ValueError:
             cfg.ValidationError(self, text='Date should be in YYYY-MM-DD format!', padx=10, pady=10)
             return

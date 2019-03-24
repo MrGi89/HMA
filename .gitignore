@@ -1,4 +1,2 @@
-env*
 .idea*
 *__pycache__*
-hma_db.sqlite

@@ -171,6 +171,7 @@ class LoginWindow(tk.Toplevel):
 
     def __init__(self, parent, **kwargs):
         tk.Toplevel.__init__(self, parent, **kwargs)
+
         self.title('Sign in')
         self.parent = parent
 
@@ -227,9 +228,9 @@ class RegisterWindow(tk.Toplevel):
         self.username_lbl = tk.Label(self, text='Username')
         self.username_val = tk.Entry(self)
         self.password_lbl = tk.Label(self, text='Password')
-        self.password_val = tk.Entry(self)
+        self.password_val = tk.Entry(self, show="*")
         self.password_conf_lbl = tk.Label(self, text='Password')
-        self.password_conf_val = tk.Entry(self)
+        self.password_conf_val = tk.Entry(self, show="*")
         self.register_btn = tk.Button(self, text='Sign on', command=self.create_user)
 
         # STYLING
